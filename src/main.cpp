@@ -41,7 +41,7 @@ void setup()
 {
   Serial.begin(115200);
 
-  display.begin();
+  initDisplay(display);
   secureClient.setInsecure();
 
   setupButtons();
@@ -49,7 +49,10 @@ void setup()
 
   connectWifi(WIFI_SSID, WIFI_PASSWORD, display);
 
+  showMessage(display, "Fetching rooms...");
   fetchRooms(http, secureClient, rooms, numRooms);
+
+  showMessage(display, "Fetching lights...");
   fetchLights(http, secureClient, lights, numLights, rooms, numRooms, tvStripRid);
 
   syncActive = fetchSyncState(http, secureClient);
@@ -76,6 +79,7 @@ void loop()
 
 void connectWifi(const char *ssid, const char *password, Adafruit_SSD1351 &display)
 {
+  showMessage(display, "Connecting to WiFi...");
   WiFi.begin(ssid, password);
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 20)
@@ -94,10 +98,7 @@ void connectWifi(const char *ssid, const char *password, Adafruit_SSD1351 &displ
   else
   {
     Serial.println("\nWiFi connection FAILED!");
-    display.fillScreen(COLOR_BLACK);
-    display.setCursor(0, 0);
-    display.println("WiFi Failed!");
-    display.println("Check credentials");
+    showMessage(display, "WiFi connection\nFAILED!");
     while (1)
       ; // Stop here
   }

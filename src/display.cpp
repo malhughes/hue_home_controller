@@ -1,5 +1,25 @@
 #include "display.h"
 
+// Create canvas for double buffering
+GFXcanvas16 canvas(128, 128);
+
+void initDisplay(Adafruit_SSD1351 &display)
+{
+  display.begin();
+  canvas.fillScreen(COLOR_BLACK);
+  display.drawRGBBitmap(0, 0, canvas.getBuffer(), 128, 128);
+}
+
+void showMessage(Adafruit_SSD1351 &display, const char *message)
+{
+  canvas.fillScreen(COLOR_BLACK);
+  canvas.setCursor(0, 0);
+  canvas.setTextSize(1);
+  canvas.setTextColor(COLOR_WHITE);
+  canvas.println(message);
+  display.drawRGBBitmap(0, 0, canvas.getBuffer(), 128, 128);
+}
+
 void updateDisplay(
     Adafruit_SSD1351 &display,
     Light lights[],
@@ -10,65 +30,71 @@ void updateDisplay(
     String tvStripRid,
     int pendingValue)
 {
-  display.fillScreen(COLOR_BLACK);
-  display.setCursor(0, 0);
-  display.setTextSize(1);
-  display.setTextColor(COLOR_WHITE, COLOR_BLACK);
+  // Draw to canvas instead of display
+  canvas.fillScreen(COLOR_BLACK);
+  canvas.setCursor(0, 0);
+  canvas.setTextSize(1);
+  canvas.setTextColor(COLOR_WHITE);
 
   if (numLights <= 0)
   {
-    display.println("No lights found!");
+    canvas.println("No lights found!");
+    display.drawRGBBitmap(0, 0, canvas.getBuffer(), 128, 128);
     return;
   }
 
-  display.print("(");
-  display.print(lights[currentLightIndex].room);
-  display.print(") ");
-  display.println("");
-  display.println(lights[currentLightIndex].name);
-  display.println("");
+  canvas.print("(");
+  canvas.print(lights[currentLightIndex].room);
+  canvas.print(") ");
+  canvas.println("");
+  canvas.println(lights[currentLightIndex].name);
+  canvas.println("");
 
   bool isTVStripWithSync = (lights[currentLightIndex].rid == tvStripRid && syncActive);
 
   if (isTVStripWithSync)
   {
-    display.println("SYNC ACTIVE");
-    display.println("");
-    display.println("Press SYNC button");
-    display.println("to control light");
+    canvas.println("SYNC ACTIVE");
+    canvas.println("");
+    canvas.println("Press SYNC button");
+    canvas.println("to control light");
+    display.drawRGBBitmap(0, 0, canvas.getBuffer(), 128, 128);
     return;
   }
 
-  display.println(lights[currentLightIndex].isOn ? "ON" : "OFF");
-  display.println("");
+  canvas.println(lights[currentLightIndex].isOn ? "ON" : "OFF");
+  canvas.println("");
 
   if (!lights[currentLightIndex].isOn)
   {
-    display.println("Long press dial");
-    display.println("to turn on");
+    canvas.println("Long press dial");
+    canvas.println("to turn on");
+    display.drawRGBBitmap(0, 0, canvas.getBuffer(), 128, 128);
     return;
   }
 
   if (currentMode == BRIGHTNESS)
   {
-    display.println("MODE: Brightness");
-    display.print("Value: ");
-    display.print((int)lights[currentLightIndex].brightness);
-    display.println("%");
+    canvas.println("MODE: Brightness");
+    canvas.print("Value: ");
+    canvas.print((int)lights[currentLightIndex].brightness);
+    canvas.println("%");
   }
   else if (currentMode == COLOR)
   {
-    display.println("MODE: Color");
-    display.print("Hue: ");
-    display.print((int)(pendingValue * 3.6));
-    display.println(" deg");
+    canvas.println("MODE: Color");
+    canvas.print("Hue: ");
+    canvas.print((int)(pendingValue * 3.6));
+    canvas.println(" deg");
   }
   else
   {
-    display.println("MODE: Temperature");
-
+    canvas.println("MODE: Temperature");
     int kelvin = map(pendingValue, 0, 100, 2000, 6500);
-    display.print(kelvin);
-    display.println("K");
+    canvas.print(kelvin);
+    canvas.println("K");
   }
+
+  // Push entire canvas to display in one operation
+  display.drawRGBBitmap(0, 0, canvas.getBuffer(), 128, 128);
 }

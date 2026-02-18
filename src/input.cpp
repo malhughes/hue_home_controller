@@ -47,10 +47,7 @@ void handleInputs(
   {
     toggleSync(http, client, syncActive);
 
-    display.fillScreen(COLOR_BLACK);
-    display.setCursor(0, 0);
-    display.setTextSize(2);
-    display.println(syncActive ? "SYNC ON" : "SYNC OFF");
+    showMessage(display, syncActive ? "SYNC ON" : "SYNC OFF");
     delay(1000);
 
     updateDisplay(display, lights, numLights, currentLightIndex, currentMode, syncActive, tvStripRid, pendingValue);

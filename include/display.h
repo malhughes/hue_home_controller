@@ -7,6 +7,12 @@
 #include "types.h"
 #include "config.h"
 
+// Canvas for double buffering (add this)
+extern GFXcanvas16 canvas;
+
+// Initialize display and canvas
+void initDisplay(Adafruit_SSD1351 &display);
+
 // UI update function
 void updateDisplay(
     Adafruit_SSD1351 &display,
@@ -17,3 +23,6 @@ void updateDisplay(
     bool syncActive,
     String tvStripRid,
     int pendingValue = -1);
+
+// Helper for showing messages during setup
+void showMessage(Adafruit_SSD1351 &display, const char *message);
