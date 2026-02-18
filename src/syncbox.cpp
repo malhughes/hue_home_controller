@@ -41,7 +41,8 @@ bool fetchSyncState(HTTPClient &http, WiFiClientSecure &client)
   return false;
 }
 
-void toggleSync(HTTPClient &http, WiFiClientSecure &client, bool &syncActive)
+void toggleSync(HTTPClient &http, WiFiClientSecure &client, bool &syncActive,
+                Light lights[], int numLights, const String &tvStripRid)
 {
   syncActive = !syncActive;
 
@@ -61,6 +62,19 @@ void toggleSync(HTTPClient &http, WiFiClientSecure &client, bool &syncActive)
   Serial.print(" (");
   Serial.print(httpCode);
   Serial.println(")");
+
+  if (!syncActive)
+  {
+    for (int i = 0; i < numLights; i++)
+    {
+      if (lights[i].rid == tvStripRid)
+      {
+        lights[i].isOn = false;
+        Serial.println("TV Strip forced to OFF (sync disabled)");
+        break;
+      }
+    }
+  }
 
   http.end();
 }

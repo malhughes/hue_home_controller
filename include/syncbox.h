@@ -5,6 +5,7 @@
 #include <WiFiClientSecure.h>
 
 #include "secrets.h"
+#include "types.h"
 
 // Sync box functions
 bool fetchSyncState(
@@ -14,4 +15,7 @@ bool fetchSyncState(
 void toggleSync(
     HTTPClient &http,
     WiFiClientSecure &client,
-    bool &syncActive);
+    bool &syncActive,
+    Light lights[],
+    int numLights,
+    const String &tvStripRid);

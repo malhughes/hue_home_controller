@@ -45,7 +45,7 @@ void handleInputs(
   bool currentSyncState = digitalRead(SYNC_BUTTON_PIN);
   if (currentSyncState == LOW && lastSyncButtonState == HIGH)
   {
-    toggleSync(http, client, syncActive);
+    toggleSync(http, client, syncActive, lights, numLights, tvStripRid);
 
     showMessage(display, syncActive ? "SYNC ON" : "SYNC OFF");
     delay(1000);
