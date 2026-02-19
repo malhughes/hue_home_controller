@@ -35,6 +35,11 @@ void centerText(const String &text, const String &print_type, int y, uint16_t co
     canvas.print(text);
 }
 
+void setModeLabel(const String &mode)
+{
+  centerText(mode, "print", 110, 0x7BEF);
+}
+
 // Helper function to draw a progress bar
 void drawProgressBar(int x, int y, int width, int height, int percentage, uint16_t fillColor, uint16_t bgColor)
 {
@@ -103,6 +108,59 @@ void drawColorBar(int x, int y, int width, int height, float currentHue)
 
   // Draw indicator line at current hue position
   int indicatorX = x + (int)((currentHue * width) / 360.0);
+  canvas.drawFastVLine(indicatorX, y - 2, height + 4, COLOR_WHITE);
+  canvas.drawFastVLine(indicatorX - 1, y - 2, height + 4, COLOR_WHITE);
+  canvas.drawFastVLine(indicatorX + 1, y - 2, height + 4, COLOR_WHITE);
+}
+
+// Helper to get color for temperature gradient
+uint16_t getTempColor(float position)
+{
+  // position: 0.0 (warm/orange) to 1.0 (cool/blue)
+
+  uint8_t r, g, b;
+
+  if (position < 0.5)
+  {
+    // Warm side: Orange to White
+    float t = position * 2.0; // 0 to 1
+    r = 255;
+    g = (uint8_t)(165 + (255 - 165) * t); // 165 (orange) to 255 (white)
+    b = (uint8_t)(0 + 255 * t);           // 0 to 255
+  }
+  else
+  {
+    // Cool side: White to Blue
+    float t = (position - 0.5) * 2.0; // 0 to 1
+    r = (uint8_t)(255 - 255 * t);     // 255 to 0
+    g = (uint8_t)(255 - 105 * t);     // 255 to 150 (light blue)
+    b = 255;
+  }
+
+  // Convert RGB888 to RGB565
+  uint8_t r5 = r >> 3;
+  uint8_t g6 = g >> 2;
+  uint8_t b5 = b >> 3;
+
+  return (r5 << 11) | (g6 << 5) | b5;
+}
+
+// Draw temperature gradient bar
+void drawTempBar(int x, int y, int width, int height, int percentage)
+{
+  // Draw gradient from warm (orange) to cool (blue)
+  for (int i = 0; i < width; i++)
+  {
+    float position = (float)i / width;
+    uint16_t color = getTempColor(position);
+    canvas.drawFastVLine(x + i, y, height, color);
+  }
+
+  // Draw white border
+  canvas.drawRect(x, y, width, height, COLOR_WHITE);
+
+  // Draw indicator line at current temperature position
+  int indicatorX = x + (percentage * width) / 100;
   canvas.drawFastVLine(indicatorX, y - 2, height + 4, COLOR_WHITE);
   canvas.drawFastVLine(indicatorX - 1, y - 2, height + 4, COLOR_WHITE);
   canvas.drawFastVLine(indicatorX + 1, y - 2, height + 4, COLOR_WHITE);
@@ -207,14 +265,14 @@ void updateDisplay(
 
     // Mode label
     canvas.setTextSize(1);
-    centerText("Brightness", "print", 110, 0x7BEF);
+    setModeLabel("Brightness");
   }
   // --- COLOR MODE ---
   else if (currentMode == COLOR)
   {
     float hueDegrees = pendingValue * 3.6; // Convert 0-100 to 0-360
 
-    // Color bar showing full spectrum
+    // Color gradient bar showing full spectrum
     int barX = 14;
     int barY = 65;
     int barWidth = 100;
@@ -224,18 +282,24 @@ void updateDisplay(
 
     // Mode label
     canvas.setTextSize(1);
-    centerText("Color", "print", 110, 0x7BEF);
+    setModeLabel("Color");
   }
-  // --- TEMPERATURE MODE (placeholder) ---
+  // --- TEMPERATURE MODE ---
   else
   {
     int kelvin = map(pendingValue, 0, 100, 2000, 6500);
 
-    canvas.setTextSize(2);
-    centerText(String(kelvin) + "K", "print", 60, COLOR_WHITE);
+    // Temperature gradient bar
+    int barX = 14;
+    int barY = 65;
+    int barWidth = 100;
+    int barHeight = 12;
 
+    drawTempBar(barX, barY, barWidth, barHeight, pendingValue);
+
+    // Mode label
     canvas.setTextSize(1);
-    centerText("Temperature", "print", 110, 0x7BEF);
+    setModeLabel("Temperature");
   }
 
   // Push entire canvas to display in one operation
