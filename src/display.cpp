@@ -20,6 +20,21 @@ void showMessage(Adafruit_SSD1351 &display, const char *message)
   display.drawRGBBitmap(0, 0, canvas.getBuffer(), 128, 128);
 }
 
+// Helper function to center text horizontally
+void centerText(const String &text, const String &print_type, int y, uint16_t color)
+{
+  int16_t x1, y1;
+  uint16_t w, h;
+  canvas.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+  int centerX = (128 - w) / 2;
+  canvas.setCursor(centerX, y);
+  canvas.setTextColor(color);
+  if (print_type == "println")
+    canvas.println(text);
+  else
+    canvas.print(text);
+}
+
 // Helper function to draw a progress bar
 void drawProgressBar(int x, int y, int width, int height, int percentage, uint16_t fillColor, uint16_t bgColor)
 {
@@ -34,19 +49,63 @@ void drawProgressBar(int x, int y, int width, int height, int percentage, uint16
   canvas.drawRect(x, y, width, height, COLOR_WHITE);
 }
 
-// Helper function to center text horizontally
-void centerText(const String &text, const String &print_type, int y, uint16_t color)
+// Helper to convert hue (0-360) to RGB565 color
+uint16_t hueToRGB565(float hue)
 {
-  int16_t x1, y1;
-  uint16_t w, h;
-  canvas.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-  int centerX = (128 - w) / 2;
-  canvas.setCursor(centerX, y);
-  canvas.setTextColor(color);
-  if (print_type == "println")
-    canvas.println(text);
+  // Normalize hue to 0-360
+  while (hue < 0)
+    hue += 360;
+  while (hue >= 360)
+    hue -= 360;
+
+  float r, g, b;
+
+  if (hue < 120)
+  {
+    r = (120 - hue) / 120.0;
+    g = hue / 120.0;
+    b = 0;
+  }
+  else if (hue < 240)
+  {
+    r = 0;
+    g = (240 - hue) / 120.0;
+    b = (hue - 120) / 120.0;
+  }
   else
-    canvas.print(text);
+  {
+    r = (hue - 240) / 120.0;
+    g = 0;
+    b = (360 - hue) / 120.0;
+  }
+
+  // Convert to RGB565
+  uint8_t r5 = (uint8_t)(r * 31);
+  uint8_t g6 = (uint8_t)(g * 63);
+  uint8_t b5 = (uint8_t)(b * 31);
+
+  return (r5 << 11) | (g6 << 5) | b5;
+}
+
+// Draw a color gradient bar showing the hue
+void drawColorBar(int x, int y, int width, int height, float currentHue)
+{
+  // Draw the full color spectrum as background
+  for (int i = 0; i < width; i++)
+  {
+    float hue = (i * 360.0) / width;
+    uint16_t color = hueToRGB565(hue);
+    canvas.drawFastVLine(x + i, y, height, color);
+  }
+
+  // Draw white border
+  canvas.drawRect(x, y, width, height, COLOR_WHITE);
+
+  // Draw indicator line at current hue position
+  int indicatorX = x + (int)((currentHue * width) / 360.0);
+  canvas.drawFastVLine(indicatorX, y - 2, height + 4, COLOR_WHITE);
+  canvas.drawFastVLine(indicatorX - 1, y - 2, height + 4, COLOR_WHITE);
+  canvas.drawFastVLine(indicatorX + 1, y - 2, height + 4, COLOR_WHITE);
 }
 
 void updateDisplay(
@@ -120,53 +179,63 @@ void updateDisplay(
   {
     int brightness = (int)lights[currentLightIndex].brightness;
 
-    // Progress bar (white/gray)
+    // Progress bar
     int barX = 14;
-    int barY = 55;
+    int barY = 65;
     int barWidth = 100;
     int barHeight = 12;
 
     drawProgressBar(barX, barY, barWidth, barHeight, brightness,
-                    COLOR_WHITE, 0x2104); // White fill, dark gray background
+                    COLOR_WHITE, 0x2104);
 
-    // Percentage value (centered below bar)
-    canvas.setTextSize(2);
-    canvas.setTextColor(COLOR_WHITE);
-
+    // Percentage text INSIDE the bar (centered)
+    canvas.setTextSize(1);
     String valueStr = String(brightness) + "%";
-    centerText(valueStr, "print", 75, COLOR_WHITE);
 
-    // Mode label (centered at bottom)
+    // Choose text color based on brightness for contrast
+    // Dark text on bright bar, light text on dark bar
+    uint16_t textColor = (brightness > 50) ? COLOR_BLACK : COLOR_WHITE;
+
+    int16_t x1, y1;
+    uint16_t w, h;
+    canvas.getTextBounds(valueStr, 0, 0, &x1, &y1, &w, &h);
+    int centerX = (128 - w) / 2;
+
+    canvas.setCursor(centerX, barY + 2); // +2 to vertically center in 12px bar
+    canvas.setTextColor(textColor);
+    canvas.print(valueStr);
+
+    // Mode label
     canvas.setTextSize(1);
     centerText("Brightness", "print", 110, 0x7BEF);
   }
-  // --- COLOR MODE (placeholder for now) ---
+  // --- COLOR MODE ---
   else if (currentMode == COLOR)
   {
-    canvas.setCursor(20, 60);
-    canvas.setTextSize(1);
-    canvas.setTextColor(COLOR_WHITE);
-    canvas.print("Color: ");
-    canvas.print((int)(pendingValue * 3.6));
-    canvas.println(" deg");
+    float hueDegrees = pendingValue * 3.6; // Convert 0-100 to 0-360
 
-    canvas.setCursor(45, 110);
-    canvas.print("Color");
+    // Color bar showing full spectrum
+    int barX = 14;
+    int barY = 65;
+    int barWidth = 100;
+    int barHeight = 12;
+
+    drawColorBar(barX, barY, barWidth, barHeight, hueDegrees);
+
+    // Mode label
+    canvas.setTextSize(1);
+    centerText("Color", "print", 110, 0x7BEF);
   }
-  // --- TEMPERATURE MODE (placeholder for now) ---
+  // --- TEMPERATURE MODE (placeholder) ---
   else
   {
     int kelvin = map(pendingValue, 0, 100, 2000, 6500);
 
-    canvas.setCursor(30, 60);
-    canvas.setTextSize(1);
-    canvas.setTextColor(COLOR_WHITE);
-    canvas.print("Temp: ");
-    canvas.print(kelvin);
-    canvas.println("K");
+    canvas.setTextSize(2);
+    centerText(String(kelvin) + "K", "print", 60, COLOR_WHITE);
 
-    canvas.setCursor(30, 110);
-    canvas.print("Temperature");
+    canvas.setTextSize(1);
+    centerText("Temperature", "print", 110, 0x7BEF);
   }
 
   // Push entire canvas to display in one operation
